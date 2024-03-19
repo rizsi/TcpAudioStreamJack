@@ -14,15 +14,18 @@ The code depends on the Jack API, libspeex(used for audio resampling), getopt an
 
 On Ubuntu these command build the program: (if you need additional dependencies that I missed here then please create an issue about it!)
 
-sudo apt install build-essential libspeex-dev libspeexdsp-dev libjack-dev libgetoptions-dev
-
-make all
+----
+$sudo apt install build-essential libspeex-dev libspeexdsp-dev libjack-dev libgetoptions-dev
+$make all
+----
 
 == Install
 
-Copy the build binary programs into the ~/.local/bin folder which is on the path of the user.
+Copy the build binary programs into the ~/.local/bin folder which is on the path of the user. This is done by this:
 
-make install
+---
+$ make install
+---
 
 == Usage
 

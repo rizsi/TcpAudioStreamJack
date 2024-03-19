@@ -23,9 +23,9 @@ $make all
 
 Copy the build binary programs into the ~/.local/bin folder which is on the path of the user. This is done by this:
 
----
+----
 $ make install
----
+----
 
 == Usage
 

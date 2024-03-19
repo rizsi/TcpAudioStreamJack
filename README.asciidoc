@@ -1,0 +1,70 @@
+= TcpAudioStreamJack
+
+Send an audio stream through TCP in cases when glitches should not happen but big latency is not a problem. I use it as a remote loudspeaker to listen to music. Watching video could also be possible if the player supports adding video-audio delay of 1 second. It is not good for real-time interactive usage like playing a game or using audio conference on a computer.
+
+Client side records audio using the Jack API and the server plays the recorded stream using the Jack API.
+
+When used together with Pipewire on the client side a module-null-sink device can be created that is visible in pavucontrol (PulseAudio volume control) and all output can be redirected to this output with one click and the sound volume can also be controlled.
+
+The client auto-reconnects after a short timeout in case the TCP connection breaks. The TCP server accepts unlimited number of clients and they are all mixed using Jack API.
+
+== Build
+
+The code depends on the Jack API, libspeex(used for audio resampling), getopt and standard Linux APIs (epoll, socket).
+
+On Ubuntu these command build the program: (if you need additional dependencies that I missed here then please create an issue about it!)
+
+sudo apt install build-essential libspeex-dev libspeexdsp-dev libjack-dev libgetoptions-dev
+
+make all
+
+== Install
+
+Copy the build binary programs into the ~/.local/bin folder which is on the path of the user.
+
+make install
+
+== Usage
+
+=== Start server
+
+Start the server with default settings on default port if you are using pipewire:
+
+----
+pw-jack jack-tcp-server -p 8080 -b Built-in Audio Analog Stereo:playback_
+----
+
+pw-jack sets up an environment where the Jack API talks to the Pipewire implementation. It is not necessary if you are not using Pipewire but th eoriginal Jack implementation.
+
+-b sets the Jack port to connect the created inputs to. It is a base name and 0 and 1 is appended to this name. For each connected client a new pair of output port is created and auto-connected to this port. qjackctl or similar program can be used to reconnect it to other inputs. jack_lsp -A can be used to list available input ports.
+
+-p sets the port to listen on. jack-tcp-server listens on all devices (0.0.0.0).
+
+== Start client
+
+Use the connect.sh script after changing the HOST variable to your actual server's IP address or host name:
+
+----
+HOST=myserver.local
+----
+
+The script is pipewire specific and destroys all module-null-sink instances (which can exist after a previous run) then creates a new module-null-sink and starts the client to connect to this virtual sink and connect the server on TCP.
+
+In pavucontrol (or similar PulseAudio volume control application) select the null-sink as the current output and the sound is forwarded to the server.
+
+== Technical details
+
+The server buffers 1 second of audio data before starting playback. The server also controls playback speed so that the 1 second buffer length is maintained. So the playback delay is going to be almost exactly 1 second plus a few milliseconds.
+
+Playback speed is controlled by resampling the audio stream using the libspeexdsp library with -3%, -1%, 0%, +1%, +3% speed when the buffer length is too short, correct or loo long.
+
+The client sends audio using a clock based on the RTC of the computer as it is implemented in module-null-sink. This will always be a little different than the clock on the server so on the long run it is expected that the buffer length will fluctuate at 0.8 or 1.2 seconds where speeding up or slowing down the playback happens. But in my experience with my computers the length of the buffer does not change much and stays at around 1.0 second for an extended period of time.
+
+== Possible improvements
+
+Use a custom module-null-sink on the client side that's clock speed can be controlled by jack-tcp-client. With this technique there would be no need for resampling on the server but buffer length would be controlled by a speed feedback sent from server to the client.
+
+Make it possible to control parameters that are now built in constants in the program. For example the 1s latency is much more than enough. The good buffer length depends on the properties of the network how much lag is added to the TCP stream sporadically.
+
+Implement a simple zero suppression compression. In my use case the stream is silent for extended periods and all 0 streams are using much Wifi bandwidth. All 0 audio packages could be replaced with just sending its length.
+
